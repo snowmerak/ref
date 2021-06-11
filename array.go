@@ -8,9 +8,10 @@ import (
 )
 
 type Array struct {
-	pointer   unsafe.Pointer
-	blockSize uintptr
-	length    uintptr
+	pointer           unsafe.Pointer
+	blockSize         uintptr
+	length            uintptr
+	autoReleaseSwitch bool
 }
 
 func NewArray(v interface{}, n uintptr) Array {
@@ -21,6 +22,17 @@ func NewArray(v interface{}, n uintptr) Array {
 		blockSize: s,
 		length:    n,
 	}
+}
+
+func (a Array) autoRelease() {
+	if a.autoReleaseSwitch {
+		a.Release()
+	}
+}
+
+func (a Array) AutoRelease() Array {
+	a.autoReleaseSwitch = true
+	return a
 }
 
 func (a Array) Len() uintptr {
@@ -38,7 +50,7 @@ func (a Array) Extend(n uintptr) Array {
 		length:    a.length + n,
 	}
 	libuseful.MemMove(na.pointer, a.pointer, a.length*a.blockSize)
-	a.Release()
+	a.autoRelease()
 	return na
 }
 
@@ -47,6 +59,20 @@ func (a Array) Foreach(f func(p unsafe.Pointer)) Array {
 		f(a.At(i))
 	}
 	return a
+}
+
+func (a Array) Map(fn func(f unsafe.Pointer, t unsafe.Pointer), t interface{}) Array {
+	s := reflect.TypeOf(t).Size()
+	na := Array{
+		pointer:   libuseful.Alloc(s * a.length),
+		blockSize: s,
+		length:    a.length,
+	}
+	for i := uintptr(0); i < a.length; i++ {
+		fn(a.At(i), na.At(i))
+	}
+	a.autoRelease()
+	return na
 }
 
 func (a Array) Release() {
