@@ -1,4 +1,4 @@
-package ref
+package array
 
 import (
 	"reflect"
@@ -14,7 +14,7 @@ type Array struct {
 	autoReleaseSwitch bool
 }
 
-func NewArray(v interface{}, n uintptr) Array {
+func New(v interface{}, n uintptr) Array {
 	s := reflect.TypeOf(v).Size()
 	p := libuseful.Alloc(s * n)
 	return Array{
